@@ -29,7 +29,9 @@ class IndexEntry:
 
     @property
     def filing_directory_url(self) -> str:
-        return f"{ARCHIVES_BASE_URL}/{PurePosixPath(self.archive_path).parent}"
+        parent = PurePosixPath(self.archive_path).parent
+        accession_dir = self.accession_number.replace("-", "")
+        return f"{ARCHIVES_BASE_URL}/{parent}/{accession_dir}"
 
     @property
     def directory_index_url(self) -> str:
@@ -39,6 +41,18 @@ class IndexEntry:
 def decode_index_payload(url: str, payload: bytes) -> str:
     content = gzip.decompress(payload) if url.endswith(".gz") else payload
     return content.decode("utf-8", errors="replace")
+
+
+def _parse_date(value: str) -> date:
+    """Parse a date string in either ``YYYY-MM-DD`` or ``YYYYMMDD`` format.
+
+    Python 3.10's ``date.fromisoformat`` only accepts the hyphenated form.
+    SEC daily-index files use the compact ``YYYYMMDD`` format, so we normalise
+    first when necessary.
+    """
+    if len(value) == 8 and "-" not in value:
+        value = f"{value[:4]}-{value[4:6]}-{value[6:]}"
+    return date.fromisoformat(value)
 
 
 def parse_master_idx(text: str) -> list[IndexEntry]:
@@ -63,7 +77,7 @@ def parse_master_idx(text: str) -> list[IndexEntry]:
                 cik=cik.strip(),
                 company_name=company_name.strip(),
                 form_type=form_type.strip(),
-                filed_date=date.fromisoformat(filed_date_raw.strip()),
+                filed_date=_parse_date(filed_date_raw.strip()),
                 archive_path=archive_path.strip(),
             )
         )

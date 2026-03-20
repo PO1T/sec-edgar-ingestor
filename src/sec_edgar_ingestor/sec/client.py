@@ -64,6 +64,7 @@ class SecClient:
         return json.loads(payload)
 
     def _request(self, url: str, *, allow_404: bool) -> httpx.Response | None:
+        _missing_codes = {403, 404}
         last_error: Exception | None = None
         for attempt in range(3):
             self._wait_for_slot()
@@ -76,7 +77,7 @@ class SecClient:
                 time.sleep(0.5 * (attempt + 1))
                 continue
 
-            if response.status_code == 404 and allow_404:
+            if response.status_code in _missing_codes and allow_404:
                 return None
             if response.status_code == 404:
                 raise SecNotFoundError(f"SEC resource not found: {url}")

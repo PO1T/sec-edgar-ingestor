@@ -39,6 +39,12 @@ This file records durable instructions for future coding-agent sessions working 
 - Add or update tests for all non-trivial parsing and loading behavior.
 - Do not silently defer risky edge cases; document them in `docs/OPEN_QUESTIONS.md` or `docs/NEXT_STEPS.md`.
 
+## Cross-Repo Coordination
+
+- This repository is upstream of `sec-edgar-mcp-server`.
+- Any change here that affects schema, analytical query surfaces, CLI behavior, or downstream data assumptions should come with a short downstream impact summary for the MCP server repository.
+- When possible, provide a copy-paste sync note or prompt that can be sent to the `sec-edgar-mcp-server` coding session.
+
 ## Repo Conventions
 
 - Source code lives under `src/sec_edgar_ingestor/`.

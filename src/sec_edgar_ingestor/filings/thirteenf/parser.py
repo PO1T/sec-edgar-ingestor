@@ -54,8 +54,10 @@ def parse_thirteenf(
     )
 
     is_notice = submission_type.upper().startswith("13F-NT")
-    is_amendment = submission_type.upper().endswith("/A") or _parse_bool(
-        _first_text(primary_root, "formData/coverPage/isAmendment")
+    is_amendment = submission_type.upper().endswith("/A") or bool(
+        _parse_bool(
+            _first_text(primary_root, "formData/coverPage/isAmendment")
+        )
     )
     value_unit = value_unit_for_filed_date(entry.filed_date)
 
