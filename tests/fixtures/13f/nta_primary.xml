@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<edgarSubmission xmlns="http://www.sec.gov/edgar/thirteenffiler">
+  <headerData>
+    <submissionType>13F-NT/A</submissionType>
+    <filerInfo>
+      <periodOfReport>2024-06-30</periodOfReport>
+    </filerInfo>
+  </headerData>
+  <formData>
+    <coverPage>
+      <reportCalendarOrQuarter>2024-06-30</reportCalendarOrQuarter>
+      <isAmendment>true</isAmendment>
+      <amendmentType>RESTATEMENT</amendmentType>
+      <filingManager>
+        <name>Example Capital LP</name>
+      </filingManager>
+      <reportType>13F NOTICE REPORT</reportType>
+    </coverPage>
+    <summaryPage>
+      <otherIncludedManagersCount>0</otherIncludedManagersCount>
+      <tableEntryTotal>0</tableEntryTotal>
+      <tableValueTotal>0</tableValueTotal>
+      <isConfidentialOmitted>false</isConfidentialOmitted>
+    </summaryPage>
+    <signatureBlock>
+      <name>Jane Example</name>
+      <signatureDate>2024-08-15</signatureDate>
+    </signatureBlock>
+  </formData>
+</edgarSubmission>

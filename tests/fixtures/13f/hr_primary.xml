@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<edgarSubmission xmlns="http://www.sec.gov/edgar/thirteenffiler">
+  <headerData>
+    <submissionType>13F-HR</submissionType>
+    <filerInfo>
+      <periodOfReport>2024-03-31</periodOfReport>
+      <filer>
+        <name>Example Capital LP</name>
+      </filer>
+    </filerInfo>
+  </headerData>
+  <formData>
+    <coverPage>
+      <reportCalendarOrQuarter>2024-03-31</reportCalendarOrQuarter>
+      <isAmendment>false</isAmendment>
+      <filingManager>
+        <name>Example Capital LP</name>
+        <address>
+          <street1>1 Main Street</street1>
+          <city>New York</city>
+          <stateOrCountry>NY</stateOrCountry>
+          <zipCode>10001</zipCode>
+        </address>
+      </filingManager>
+      <reportType>13F HOLDINGS REPORT</reportType>
+      <form13FFileNumber>028-12345</form13FFileNumber>
+      <crdNumber>123456</crdNumber>
+      <secFileNumber>801-12345</secFileNumber>
+      <provideInfoForInstruction5>false</provideInfoForInstruction5>
+    </coverPage>
+    <otherManagersInfo>
+      <otherManagerInfo>
+        <sequenceNumber>1</sequenceNumber>
+        <name>Example Sub Adviser LLC</name>
+        <cik>0002000001</cik>
+        <form13FFileNumber>028-54321</form13FFileNumber>
+      </otherManagerInfo>
+    </otherManagersInfo>
+    <summaryPage>
+      <otherIncludedManagersCount>1</otherIncludedManagersCount>
+      <tableEntryTotal>2</tableEntryTotal>
+      <tableValueTotal>450</tableValueTotal>
+      <isConfidentialOmitted>false</isConfidentialOmitted>
+    </summaryPage>
+    <signatureBlock>
+      <name>Jane Example</name>
+      <title>Chief Compliance Officer</title>
+      <phone>555-555-0100</phone>
+      <city>New York</city>
+      <stateOrCountry>NY</stateOrCountry>
+      <signatureDate>2024-05-15</signatureDate>
+    </signatureBlock>
+  </formData>
+</edgarSubmission>
