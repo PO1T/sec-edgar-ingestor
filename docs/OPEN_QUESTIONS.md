@@ -11,6 +11,8 @@
 - What backup policy should be recommended for local raw artifact storage?
 - Should future releases support compressed raw artifact storage for large backfills?
 - Should large backfills persist index-file fetch metadata for easier auditing and restart behavior?
+- Should the analytics refresh path move to `REFRESH MATERIALIZED VIEW CONCURRENTLY` or another staged refresh model for lower read disruption?
+- Should daily runs refresh every analytical surface every time, or should some views move to a separate scheduled refresh cadence?
 
 ## Data Quality
 

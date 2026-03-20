@@ -13,14 +13,17 @@
 - 13F submission discovery, parser, normalization, and loader implemented.
 - `dev`, `full`, `daily`, and `reprocess` CLI paths added.
 - parser, discovery, loader, config, and mode tests added.
+- CIK-keyed 13F analytics materialized views added for fast holder and quarter-over-quarter queries.
+- analytics refresh CLI and post-ingest refresh flow added.
+- live PostgreSQL validation completed for migrations and indexed analytics queries.
 
 ## In Progress
 
-- end-to-end verification against a live PostgreSQL instance,
-- operational hardening for long-running backfills.
+- operational hardening for long-running backfills,
+- refinement of analytics refresh behavior for production-style schedules.
 
 ## Not Started
 
 - canonical security and ticker enrichment,
-- data quality reporting queries,
+- broader data quality reporting queries,
 - next filing family implementation.

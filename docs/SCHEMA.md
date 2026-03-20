@@ -96,6 +96,52 @@ Selects the most recent accepted filing per filer, report period, and form categ
 
 Joins effective filings to holdings for reporting and future MCP use.
 
+## Analytics Materialized Views
+
+### `thirteenf_filer_identities`
+
+Provides a filer lookup surface keyed by `cik`:
+
+- stable filer identifier for analytics,
+- canonical display name,
+- observed company-name aliases,
+- observed filing-manager aliases.
+
+This is the recommended surface for mapping user-facing filer names to a stable internal key.
+
+### `thirteenf_filer_positions`
+
+Pre-aggregates effective 13F holdings by:
+
+- `report_period`,
+- `cik`,
+- `security_reference_key`,
+- option/share shape keys.
+
+It also joins back to `security_references` so issuer display fields come from the stable security tuple rather than raw per-row filing spellings. This is the primary fast surface for:
+
+- top holdings for a filer,
+- top holders for an issuer,
+- option/share aggregations by filer or issuer.
+
+### `thirteenf_filer_position_changes`
+
+Precomputes quarter-over-quarter deltas from `thirteenf_filer_positions` for each filer/security combination. This is the primary fast surface for:
+
+- biggest adds and trims by filer,
+- broad cross-filer scans for a given issuer,
+- MCP-style “who added” and “who sold” tools.
+
+## Indexing Strategy
+
+The schema now includes:
+
+- base indexes that speed joins and materialized-view refreshes,
+- issuer/CUSIP/FIGI indexes for lookup patterns,
+- report-period and delta/value indexes on the analytics materialized views.
+
+For downstream analytics and MCP work, use `cik` as the filer key and treat raw `company_name` as provenance, not identity.
+
 ## Reprocessing Model
 
 - Raw artifacts are cached on disk.

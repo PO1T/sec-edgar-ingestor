@@ -72,3 +72,19 @@ Tradeoffs:
 
 - schema evolution ergonomics are more manual than with a full migration framework,
 - some future complexity may justify revisiting this choice.
+
+## ADR-006: Use CIK-Keyed 13F Analytics Materialized Views For MCP-Facing Queries
+
+Status: accepted
+
+Why:
+
+- raw `company_name` values are not a stable filer identity,
+- broad quarter-over-quarter scans are too expensive on raw effective-holdings joins alone,
+- materialized rollups let downstream tools query `cik`-keyed positions and deltas directly.
+
+Tradeoffs:
+
+- refreshes add extra work after ingestion and reprocessing,
+- materialized views duplicate some derived state,
+- future operational tuning may still need concurrent refreshes or additional partial-refresh strategies.

@@ -34,6 +34,20 @@ Optional:
 4. Run `sec-edgar ingest 13f --mode full` in a longer-lived environment.
 5. Schedule `sec-edgar ingest 13f --mode daily`.
 
+## Analytics Refresh Behavior
+
+- `sec-edgar db migrate` creates the analytical materialized views for 13F.
+- `sec-edgar ingest 13f ...` refreshes the analytics materialized views by default when it processes at least one filing.
+- `sec-edgar reprocess 13f ...` also refreshes them by default when it updates cached filings.
+- Use `--skip-analytics-refresh` if you want to defer that cost and refresh later with `sec-edgar db refresh-analytics`.
+
+## Querying Guidance
+
+- Use `thirteenf_filer_identities` to resolve a filer name to `cik`.
+- Use `thirteenf_filer_positions` for holder rankings and filer position snapshots.
+- Use `thirteenf_filer_position_changes` for quarter-over-quarter scans.
+- Avoid using raw `company_name` from `filings` or `thirteenf_effective_holdings` as the analytical entity key.
+
 ## Storage Estimate
 
 These are rough engineering estimates for the current 13F-only implementation, not guarantees.

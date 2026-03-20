@@ -7,6 +7,7 @@ from datetime import date
 from pathlib import Path
 
 from sec_edgar_ingestor.config import Settings
+from sec_edgar_ingestor.db.analytics import refresh_analytics_views
 from sec_edgar_ingestor.db.connection import connect_db
 from sec_edgar_ingestor.filings.thirteenf.discovery import (
     parse_submission_documents,
@@ -55,6 +56,7 @@ class IngestOptions:
     to_date: date | None
     limit_filings: int | None
     dry_run: bool = False
+    refresh_analytics: bool = True
 
 
 @dataclass(frozen=True)
@@ -62,6 +64,7 @@ class ReprocessOptions:
     accession: str | None
     from_date: date | None
     to_date: date | None
+    refresh_analytics: bool = True
 
 
 def run_ingest(settings: Settings, options: IngestOptions) -> int:
@@ -99,6 +102,7 @@ def run_ingest(settings: Settings, options: IngestOptions) -> int:
             "processed_filings": 0,
             "failed_filings": 0,
             "skipped_filings": 0,
+            "analytics_views_refreshed": 0,
         }
 
         try:
@@ -168,6 +172,15 @@ def run_ingest(settings: Settings, options: IngestOptions) -> int:
                             )
                         stats["failed_filings"] += 1
 
+            if (
+                not options.dry_run
+                and options.refresh_analytics
+                and stats["processed_filings"] > 0
+            ):
+                refreshed = refresh_analytics_views(connection)
+                stats["analytics_views_refreshed"] = len(refreshed)
+                LOGGER.info("Refreshed analytics views: %s", ", ".join(refreshed))
+
             final_status = "SUCCESS" if stats["failed_filings"] == 0 else "PARTIAL_SUCCESS"
             finish_ingestion_run(
                 connection,
@@ -198,7 +211,11 @@ def run_reprocess(settings: Settings, options: ReprocessOptions) -> int:
             to_date=options.to_date,
             details_json=json.dumps({"accession": options.accession}),
         )
-        stats = {"processed_filings": 0, "failed_filings": 0}
+        stats = {
+            "processed_filings": 0,
+            "failed_filings": 0,
+            "analytics_views_refreshed": 0,
+        }
         try:
             for filing_record in list_filings_for_reprocess(
                 connection,
@@ -244,6 +261,11 @@ def run_reprocess(settings: Settings, options: ReprocessOptions) -> int:
                         error_message=str(exc),
                     )
                     stats["failed_filings"] += 1
+
+            if options.refresh_analytics and stats["processed_filings"] > 0:
+                refreshed = refresh_analytics_views(connection)
+                stats["analytics_views_refreshed"] = len(refreshed)
+                LOGGER.info("Refreshed analytics views: %s", ", ".join(refreshed))
 
             final_status = "SUCCESS" if stats["failed_filings"] == 0 else "PARTIAL_SUCCESS"
             finish_ingestion_run(

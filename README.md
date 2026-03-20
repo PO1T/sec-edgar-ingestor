@@ -12,6 +12,7 @@ The current production slice focuses on 13F. The long-term product goal is to ma
 - parses XML-era `13F-HR`, `13F-HR/A`, `13F-NT`, and `13F-NT/A`,
 - normalizes filing metadata, manager data, and holdings,
 - loads results into PostgreSQL with idempotent upserts,
+- materializes CIK-keyed analytical views for fast holder and quarter-over-quarter queries,
 - supports `dev`, `full`, `daily`, and `reprocess` workflows.
 
 ## Current Boundaries
@@ -43,6 +44,8 @@ Create a PostgreSQL database and set `SEC_EDGAR_DB_DSN` in `.env`, then run:
 sec-edgar db migrate
 ```
 
+The migration step creates the base schema and the 13F analytics materialized views used for fast downstream queries.
+
 ## Commands
 
 Development ingestion for the last 6 months:
@@ -68,6 +71,14 @@ Reprocess cached artifacts without re-downloading:
 ```bash
 sec-edgar reprocess 13f --from-date 2024-01-01 --to-date 2024-03-31
 ```
+
+Refresh analytics materialized views manually:
+
+```bash
+sec-edgar db refresh-analytics
+```
+
+If you want to postpone the refresh after a long ingest or reprocess run, use `--skip-analytics-refresh` and run the refresh command later.
 
 ## Configuration
 
@@ -100,6 +111,16 @@ tests/
 docs/
 ```
 
+## Query Surfaces
+
+The recommended downstream query surfaces are:
+
+- `thirteenf_filer_identities` for filer lookup and aliases keyed by `cik`
+- `thirteenf_filer_positions` for fast holder and position rollups
+- `thirteenf_filer_position_changes` for fast quarter-over-quarter scans
+
+For analytical queries, treat `cik` as the stable filer identity and `canonical_filer_name` as a display label. Raw `company_name` values from EDGAR indexes remain useful for provenance, but they are not a safe entity key.
+
 ## Documentation
 
 - [Architecture](docs/ARCHITECTURE.md)
@@ -109,6 +130,7 @@ docs/
 - [Filing Priority](docs/FILING_PRIORITY.md)
 - [Ingestion Modes](docs/INGESTION_MODES.md)
 - [Operations](docs/OPERATIONS.md)
+- [Query Patterns](docs/QUERY_PATTERNS.md)
 - [Progress](docs/PROGRESS.md)
 - [Next Steps](docs/NEXT_STEPS.md)
 - [Open Questions](docs/OPEN_QUESTIONS.md)
@@ -123,7 +145,7 @@ PYTHONPATH=src python -m unittest discover -s tests -v
 
 ## Limitations
 
-- The current environment used to bootstrap this repo did not have `python3.10`, `psql`, or `psycopg` installed, so automated verification here focused on parser/unit behavior rather than live PostgreSQL execution.
+- Live PostgreSQL validation has been run against a populated local 13F dataset, including the CIK-keyed analytics materialized views and indexed quarter-over-quarter scans.
 - The first slice is intentionally conservative about canonical security identity. Raw filed identifiers are preserved; enrichment comes later.
 
 ## License

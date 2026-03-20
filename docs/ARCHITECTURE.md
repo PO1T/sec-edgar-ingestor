@@ -14,6 +14,7 @@ The future MCP server should sit downstream and query PostgreSQL through purpose
 4. Parse filing-family-specific content into normalized models.
 5. Load normalized records into PostgreSQL with idempotent upserts.
 6. Expose query-friendly tables and views for downstream analytics and MCP tools.
+7. Refresh analytical materialized views that trade some write-time cost for low-latency read paths.
 
 ## Implemented Module Layout
 
@@ -66,6 +67,16 @@ For 13F:
 - structured holdings rows,
 - security-reference rows keyed to the exact filed identity tuple.
 
+### Analytics Layer
+
+For 13F:
+
+- `thirteenf_filer_identities` maps filer aliases to a stable `cik`,
+- `thirteenf_filer_positions` pre-aggregates holdings by `report_period`, `cik`, and security identity,
+- `thirteenf_filer_position_changes` precomputes quarter-over-quarter deltas for filer/security combinations.
+
+This layer exists because raw 13F holdings are still filed at a finer grain than the most common analytical questions. The materialized views collapse repeated account-level rows and expose CIK-keyed rollups that are fast enough for future MCP tools.
+
 ### Future Enrichment Layer
 
 Deferred to later phases:
@@ -81,6 +92,7 @@ Deferred to later phases:
 - SQL-friendly grain matters more than early canonicalization.
 - Quarter-over-quarter comparisons should be achievable through stable report period and filer keys.
 - Future MCP tools should consume views that encode filing-family-specific “effective” logic, such as picking the latest valid amendment for a quarter.
+- Filer identity for analytics should be keyed by `cik`, not raw `company_name`.
 
 ## 13F Boundaries
 
@@ -91,7 +103,13 @@ Deferred to later phases:
 - changes in holdings between quarters,
 - option put/call aggregation within filed 13F data.
 
-The implemented v1 code supports those foundations through `thirteenf_effective_filings` and `thirteenf_effective_holdings`.
+The implemented v1 code supports those foundations through:
+
+- `thirteenf_effective_filings`
+- `thirteenf_effective_holdings`
+- `thirteenf_filer_identities`
+- `thirteenf_filer_positions`
+- `thirteenf_filer_position_changes`
 
 13F alone cannot fully answer:
 
