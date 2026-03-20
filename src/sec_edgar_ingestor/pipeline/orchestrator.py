@@ -66,10 +66,14 @@ class ReprocessOptions:
 
 def run_ingest(settings: Settings, options: IngestOptions) -> int:
     with connect_db(settings.require_db()) as connection:
-        checkpoint = load_checkpoint(
-            connection,
-            filing_family="13F",
-            mode=options.mode,
+        checkpoint = (
+            load_checkpoint(
+                connection,
+                filing_family="13F",
+                mode=options.mode,
+            )
+            if options.mode in {"full", "daily"}
+            else None
         )
         window = resolve_window(
             options.mode,
@@ -142,13 +146,14 @@ def run_ingest(settings: Settings, options: IngestOptions) -> int:
                                 status="SUCCESS",
                                 artifact_hash=fingerprint,
                             )
-                            save_checkpoint(
-                                connection,
-                                filing_family="13F",
-                                mode=options.mode,
-                                filed_date=parsed_filing.filed_date,
-                                accession_number=parsed_filing.accession_number,
-                            )
+                            if options.mode in {"full", "daily"}:
+                                save_checkpoint(
+                                    connection,
+                                    filing_family="13F",
+                                    mode=options.mode,
+                                    filed_date=parsed_filing.filed_date,
+                                    accession_number=parsed_filing.accession_number,
+                                )
                         stats["processed_filings"] += 1
                     except Exception as exc:
                         LOGGER.exception("Failed to process accession %s", entry.accession_number)
