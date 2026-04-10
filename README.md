@@ -118,6 +118,7 @@ The recommended downstream query surfaces are:
 - `thirteenf_filer_identities` for filer lookup and aliases keyed by `cik`
 - `thirteenf_filer_positions` for fast holder and position rollups
 - `thirteenf_filer_position_changes` for fast quarter-over-quarter scans
+- `thirteenf_compare_filer_holdings(...)` for direct period-vs-period comparisons with conservative rename/reclassification matching
 
 For analytical queries, treat `cik` as the stable filer identity and `canonical_filer_name` as a display label. Raw `company_name` values from EDGAR indexes remain useful for provenance, but they are not a safe entity key.
 

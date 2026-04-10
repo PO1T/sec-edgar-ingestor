@@ -132,6 +132,17 @@ Precomputes quarter-over-quarter deltas from `thirteenf_filer_positions` for eac
 - broad cross-filer scans for a given issuer,
 - MCP-style “who added” and “who sold” tools.
 
+### `thirteenf_compare_filer_holdings(...)`
+
+Compares two filing periods for one filer directly from `thirteenf_filer_positions`.
+
+It matches positions in two passes:
+
+- exact `security_reference_key` matches first,
+- then a conservative fallback for one-to-one unmatched rows with the same issuer and identical share count.
+
+The fallback exists to reduce false “sold” plus “new position” pairs when a filing reports the same economic position under a renamed or reclassified security reference across quarters.
+
 ## Indexing Strategy
 
 The schema now includes:
