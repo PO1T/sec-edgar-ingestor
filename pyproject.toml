@@ -13,6 +13,7 @@ authors = [
   { name = "SEC EDGAR Maintainer", email = "opensource@example.com" }
 ]
 dependencies = [
+  "beautifulsoup4>=4.12,<5",
   "httpx>=0.28,<0.29",
   "psycopg[binary]>=3.2,<3.3",
   "python-dotenv>=1.0,<2.0",

@@ -1,0 +1,33 @@
+<html xmlns:ix="http://www.xbrl.org/2013/inlineXBRL" xmlns:xbrli="http://www.xbrl.org/2003/instance">
+<head><title>Example Foods 2024 Form 10-K</title></head>
+<body>
+<xbrli:context id="FY2024">
+  <xbrli:entity><xbrli:identifier scheme="http://www.sec.gov/CIK">0000123456</xbrli:identifier></xbrli:entity>
+  <xbrli:period>
+    <xbrli:startDate>2024-01-01</xbrli:startDate>
+    <xbrli:endDate>2024-12-31</xbrli:endDate>
+  </xbrli:period>
+</xbrli:context>
+<xbrli:context id="Instant2024">
+  <xbrli:entity><xbrli:identifier scheme="http://www.sec.gov/CIK">0000123456</xbrli:identifier></xbrli:entity>
+  <xbrli:period><xbrli:instant>2024-12-31</xbrli:instant></xbrli:period>
+</xbrli:context>
+<ix:nonNumeric name="dei:DocumentFiscalYearFocus" contextRef="FY2024">2024</ix:nonNumeric>
+<ix:nonNumeric name="dei:DocumentFiscalPeriodFocus" contextRef="FY2024">FY</ix:nonNumeric>
+<ix:nonNumeric name="dei:DocumentPeriodEndDate" contextRef="FY2024">2024-12-31</ix:nonNumeric>
+<ix:nonFraction name="us-gaap:Revenues" contextRef="FY2024" unitRef="usd" scale="6" decimals="-6">4,250</ix:nonFraction>
+
+<h1>Item 1. Business</h1>
+<p>Example Foods sells packaged tomato products and soup in North America.</p>
+<h1>Item 1A. Risk Factors</h1>
+<p>We face commodity exposure to tomatoes, steel cans, and foreign currency including Swiss franc denominated costs.</p>
+<h1>Item 7. Management's Discussion and Analysis</h1>
+<p>Management discusses liquidity, debt maturities, impairment charges, and dividend policy.</p>
+<h1>Item 7A. Quantitative and Qualitative Disclosures About Market Risk</h1>
+<p>We use options and forward contracts. Certain hedging relationships are not designated as accounting hedges.</p>
+<h1>Item 8. Financial Statements and Supplementary Data</h1>
+<p>The consolidated statements include notes about derivatives and impairment.</p>
+<h1>Item 9A. Controls and Procedures</h1>
+<p>Disclosure controls and procedures were effective.</p>
+</body>
+</html>

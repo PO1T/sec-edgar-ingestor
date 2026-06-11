@@ -29,6 +29,32 @@ class CliParserTestCase(unittest.TestCase):
 
         self.assertTrue(args.skip_analytics_refresh)
 
+    def test_periodic_ingest_options_parse(self) -> None:
+        parser = build_parser()
+        args = parser.parse_args(
+            [
+                "ingest",
+                "periodic",
+                "--mode",
+                "dev",
+                "--form-type",
+                "10-K",
+                "--exclude-amendments",
+            ]
+        )
+
+        self.assertEqual(args.filing_family, "periodic")
+        self.assertEqual(args.form_type, "10-K")
+        self.assertTrue(args.exclude_amendments)
+
+    def test_periodic_embedding_backfill_parses(self) -> None:
+        parser = build_parser()
+        args = parser.parse_args(["embeddings", "backfill", "periodic", "--limit", "10"])
+
+        self.assertEqual(args.embeddings_command, "backfill")
+        self.assertEqual(args.embeddings_family, "periodic")
+        self.assertEqual(args.limit, 10)
+
 
 if __name__ == "__main__":
     unittest.main()

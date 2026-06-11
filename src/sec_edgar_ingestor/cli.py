@@ -25,6 +25,10 @@ def build_parser() -> argparse.ArgumentParser:
         "refresh-analytics",
         help="Refresh analytics materialized views",
     )
+    db_subparsers.add_parser(
+        "enable-vector",
+        help="Install pgvector for semantic periodic retrieval when available",
+    )
 
     ingest_parser = subparsers.add_parser("ingest", help="Ingest filings")
     ingest_subparsers = ingest_parser.add_subparsers(dest="filing_family", required=True)
@@ -38,6 +42,26 @@ def build_parser() -> argparse.ArgumentParser:
         "--skip-analytics-refresh",
         action="store_true",
         help="Skip refreshing analytics materialized views after ingestion",
+    )
+    periodic_parser = ingest_subparsers.add_parser(
+        "periodic",
+        help="Ingest 10-K and 10-Q periodic reports",
+    )
+    periodic_parser.add_argument("--mode", choices=["dev", "full", "daily"], required=True)
+    periodic_parser.add_argument("--from-date", type=_parse_date)
+    periodic_parser.add_argument("--to-date", type=_parse_date)
+    periodic_parser.add_argument("--limit-filings", type=int)
+    periodic_parser.add_argument("--dry-run", action="store_true")
+    periodic_parser.add_argument(
+        "--form-type",
+        choices=["all", "10-K", "10-Q"],
+        default="all",
+        help="Restrict periodic ingestion to one base form type",
+    )
+    periodic_parser.add_argument(
+        "--exclude-amendments",
+        action="store_true",
+        help="Exclude 10-K/A and 10-Q/A amendments",
     )
 
     reprocess_parser = subparsers.add_parser("reprocess", help="Reprocess cached filings")
@@ -57,6 +81,35 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Skip refreshing analytics materialized views after reprocessing",
     )
+    reprocess_periodic = reprocess_subparsers.add_parser(
+        "periodic",
+        help="Reprocess cached 10-K and 10-Q periodic reports",
+    )
+    reprocess_periodic.add_argument("--accession")
+    reprocess_periodic.add_argument("--from-date", type=_parse_date)
+    reprocess_periodic.add_argument("--to-date", type=_parse_date)
+
+    embeddings_parser = subparsers.add_parser(
+        "embeddings",
+        help="Embedding utilities",
+    )
+    embeddings_subparsers = embeddings_parser.add_subparsers(
+        dest="embeddings_command",
+        required=True,
+    )
+    embeddings_backfill = embeddings_subparsers.add_parser(
+        "backfill",
+        help="Backfill vector embeddings",
+    )
+    embeddings_backfill_subparsers = embeddings_backfill.add_subparsers(
+        dest="embeddings_family",
+        required=True,
+    )
+    embeddings_periodic = embeddings_backfill_subparsers.add_parser(
+        "periodic",
+        help="Backfill periodic report chunk embeddings",
+    )
+    embeddings_periodic.add_argument("--limit", type=int)
 
     return parser
 
@@ -79,6 +132,13 @@ def main(argv: list[str] | None = None) -> int:
         for name in refreshed:
             print(name)
         return 0
+    if args.command == "db" and args.db_command == "enable-vector":
+        with connect_db(settings.require_db()) as connection:
+            with connection.cursor() as cursor:
+                cursor.execute("CREATE EXTENSION IF NOT EXISTS vector")
+            connection.commit()
+        print("vector")
+        return 0
 
     from sec_edgar_ingestor.pipeline.orchestrator import (
         IngestOptions,
@@ -93,8 +153,23 @@ def main(argv: list[str] | None = None) -> int:
             from_date=args.from_date,
             to_date=args.to_date,
             limit_filings=args.limit_filings,
+            filing_family="13F",
             dry_run=args.dry_run,
             refresh_analytics=not args.skip_analytics_refresh,
+        )
+        return run_ingest(settings, options)
+
+    if args.command == "ingest" and args.filing_family == "periodic":
+        options = IngestOptions(
+            mode=args.mode,
+            from_date=args.from_date,
+            to_date=args.to_date,
+            limit_filings=args.limit_filings,
+            filing_family="PERIODIC_REPORTS",
+            dry_run=args.dry_run,
+            refresh_analytics=False,
+            form_type=args.form_type,
+            include_amendments=not args.exclude_amendments,
         )
         return run_ingest(settings, options)
 
@@ -103,9 +178,31 @@ def main(argv: list[str] | None = None) -> int:
             accession=args.accession,
             from_date=args.from_date,
             to_date=args.to_date,
+            filing_family="13F",
             refresh_analytics=not args.skip_analytics_refresh,
         )
         return run_reprocess(settings, options)
+
+    if args.command == "reprocess" and args.reprocess_family == "periodic":
+        options = ReprocessOptions(
+            accession=args.accession,
+            from_date=args.from_date,
+            to_date=args.to_date,
+            filing_family="PERIODIC_REPORTS",
+            refresh_analytics=False,
+        )
+        return run_reprocess(settings, options)
+
+    if (
+        args.command == "embeddings"
+        and args.embeddings_command == "backfill"
+        and args.embeddings_family == "periodic"
+    ):
+        from sec_edgar_ingestor.filings.periodic.embeddings import (
+            run_periodic_embedding_backfill,
+        )
+
+        return run_periodic_embedding_backfill(settings, limit=args.limit)
 
     parser.error("Unsupported command")
     return 2

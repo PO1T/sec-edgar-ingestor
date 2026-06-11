@@ -9,6 +9,7 @@ from typing import Iterable, Iterator
 
 ARCHIVES_BASE_URL = "https://www.sec.gov/Archives"
 THIRTEENF_FORM_TYPES = frozenset({"13F-HR", "13F-HR/A", "13F-NT", "13F-NT/A"})
+PERIODIC_REPORT_FORM_TYPES = frozenset({"10-K", "10-K/A", "10-Q", "10-Q/A"})
 
 
 @dataclass(frozen=True)

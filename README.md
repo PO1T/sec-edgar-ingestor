@@ -6,10 +6,11 @@ The current production slice focuses on 13F. The long-term product goal is to ma
 
 ## What It Does Today
 
-- discovers 13F filings from official EDGAR index files,
+- discovers 13F and periodic report filings from official EDGAR index files,
 - fetches filing artifacts from SEC archive URLs,
 - caches raw artifacts on local disk,
 - parses XML-era `13F-HR`, `13F-HR/A`, `13F-NT`, and `13F-NT/A`,
+- parses Form `10-K` and `10-Q` periodic reports into sections, chunks, and Inline XBRL facts,
 - normalizes filing metadata, manager data, and holdings,
 - loads results into PostgreSQL with idempotent upserts,
 - materializes CIK-keyed analytical views for fast holder and quarter-over-quarter queries,
@@ -17,7 +18,7 @@ The current production slice focuses on 13F. The long-term product goal is to ma
 
 ## Current Boundaries
 
-- Supported family: `13F` only
+- Supported families: `13F`, `PERIODIC_REPORTS` (`10-K`, `10-Q`, with amendments retained)
 - Historical scope: XML-era filings from `2013-05-20` onward
 - Pre-2013 ASCII 13F support: not implemented
 - Ticker, sector, and canonical security enrichment: not implemented
@@ -72,6 +73,27 @@ Reprocess cached artifacts without re-downloading:
 sec-edgar reprocess 13f --from-date 2024-01-01 --to-date 2024-03-31
 ```
 
+Development ingestion for recent 10-K/10-Q filings:
+
+```bash
+sec-edgar ingest periodic --mode dev --form-type all
+```
+
+Reprocess cached 10-K/10-Q artifacts:
+
+```bash
+sec-edgar reprocess periodic --from-date 2024-01-01 --to-date 2024-12-31
+```
+
+Optional semantic retrieval setup:
+
+```bash
+sec-edgar db enable-vector
+SEC_EDGAR_EMBEDDINGS_ENABLED=true \
+SEC_EDGAR_EMBEDDING_API_KEY=... \
+sec-edgar embeddings backfill periodic --limit 1000
+```
+
 Refresh analytics materialized views manually:
 
 ```bash
@@ -93,6 +115,13 @@ Optional:
 - `SEC_EDGAR_LOG_LEVEL`
 - `SEC_EDGAR_REQUESTS_PER_SECOND`
 - `SEC_EDGAR_HTTP_TIMEOUT_SECONDS`
+- `SEC_EDGAR_EMBEDDINGS_ENABLED`
+- `SEC_EDGAR_EMBEDDING_API_URL`
+- `SEC_EDGAR_EMBEDDING_API_KEY`
+- `SEC_EDGAR_EMBEDDING_MODEL`
+- `SEC_EDGAR_EMBEDDING_DIMENSIONS`
+- `SEC_EDGAR_EMBEDDING_BATCH_SIZE`
+- `SEC_EDGAR_EMBEDDING_TIMEOUT_SECONDS`
 
 See `.env.example` for defaults.
 
@@ -107,6 +136,7 @@ src/sec_edgar_ingestor/
   storage/
   pipeline/
   filings/thirteenf/
+  filings/periodic/
 tests/
 docs/
 ```
@@ -121,6 +151,8 @@ The recommended downstream query surfaces are:
 - `thirteenf_compare_filer_holdings(...)` for direct period-vs-period comparisons with conservative rename/reclassification matching
 
 For analytical queries, treat `cik` as the stable filer identity and `canonical_filer_name` as a display label. Raw `company_name` values from EDGAR indexes remain useful for provenance, but they are not a safe entity key.
+
+For periodic reports, `periodic_report_chunks` is the citation-oriented narrative retrieval surface, `periodic_report_xbrl_facts` is the concept-level numerical surface, and optional `periodic_chunk_embeddings` enables semantic retrieval through pgvector. Keyword/full-text retrieval continues to work without pgvector or an embedding provider.
 
 ## Documentation
 
@@ -148,6 +180,8 @@ PYTHONPATH=src python -m unittest discover -s tests -v
 
 - Live PostgreSQL validation has been run against a populated local 13F dataset, including the CIK-keyed analytics materialized views and indexed quarter-over-quarter scans.
 - The first slice is intentionally conservative about canonical security identity. Raw filed identifiers are preserved; enrichment comes later.
+- Periodic report ticker filtering depends on the optional `sec_company_tickers` enrichment table.
+- Periodic report embeddings are optional and require pgvector plus an OpenAI-compatible embedding endpoint.
 
 ## License
 

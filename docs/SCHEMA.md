@@ -180,3 +180,29 @@ For downstream analytics and MCP work, use `cik` as the filer key and treat raw 
 - Core parent tables use `INSERT ... ON CONFLICT DO UPDATE`.
 - 13F child tables for holdings and other managers are replaced per accession during reload.
 - This keeps reprocessing deterministic without accumulating stale child rows.
+
+## Periodic Report Tables
+
+### `periodic_reports`
+
+Stores filing-level normalized metadata for Forms `10-K`, `10-Q`, `10-K/A`, and `10-Q/A`, including report period, fiscal year/period, amendment flag, section count, chunk count, XBRL fact count, and parser version.
+
+### `periodic_report_sections`
+
+Stores extracted SEC item sections with section keys, item labels, titles, full section text, and character offsets into the normalized filing text.
+
+### `periodic_report_chunks`
+
+Stores section-aware retrieval chunks with citation offsets and content hashes. A PostgreSQL full-text GIN index supports lexical disclosure retrieval.
+
+### `periodic_report_xbrl_facts`
+
+Stores Inline XBRL facts by accession, concept, local name, context, unit, raw value, parsed numeric value where available, periods, and dimensions JSON.
+
+### `periodic_chunk_embeddings`
+
+Optional pgvector-backed semantic index for periodic report chunks. Migrations create this table only when pgvector can be enabled; otherwise keyword retrieval remains available and MCP tools report semantic retrieval as unavailable.
+
+### `periodic_report_summaries`
+
+Read-oriented view joining periodic report metadata to core filings and optional ticker enrichment.

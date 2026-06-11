@@ -20,6 +20,17 @@ from sec_edgar_ingestor.filings.thirteenf.loader import (
     upsert_parsed_filing,
 )
 from sec_edgar_ingestor.filings.thirteenf.parser import parse_thirteenf
+from sec_edgar_ingestor.filings.periodic.discovery import select_periodic_documents
+from sec_edgar_ingestor.filings.periodic.loader import (
+    artifact_fingerprint as periodic_artifact_fingerprint,
+)
+from sec_edgar_ingestor.filings.periodic.loader import (
+    mark_processing_state as periodic_mark_processing_state,
+)
+from sec_edgar_ingestor.filings.periodic.loader import (
+    upsert_parsed_filing as periodic_upsert_parsed_filing,
+)
+from sec_edgar_ingestor.filings.periodic.parser import parse_periodic_report
 from sec_edgar_ingestor.pipeline.modes import (
     CheckpointValue,
     DateWindow,
@@ -37,6 +48,7 @@ from sec_edgar_ingestor.pipeline.state import (
 )
 from sec_edgar_ingestor.sec.client import SecClient
 from sec_edgar_ingestor.sec.indexes import (
+    PERIODIC_REPORT_FORM_TYPES,
     THIRTEENF_FORM_TYPES,
     IndexEntry,
     decode_index_payload,
@@ -55,8 +67,11 @@ class IngestOptions:
     from_date: date | None
     to_date: date | None
     limit_filings: int | None
+    filing_family: str = "13F"
     dry_run: bool = False
     refresh_analytics: bool = True
+    form_type: str = "all"
+    include_amendments: bool = True
 
 
 @dataclass(frozen=True)
@@ -64,15 +79,17 @@ class ReprocessOptions:
     accession: str | None
     from_date: date | None
     to_date: date | None
+    filing_family: str = "13F"
     refresh_analytics: bool = True
 
 
 def run_ingest(settings: Settings, options: IngestOptions) -> int:
+    handler = _handler_for_family(options.filing_family, form_type=options.form_type, include_amendments=options.include_amendments)
     with connect_db(settings.require_db()) as connection:
         checkpoint = (
             load_checkpoint(
                 connection,
-                filing_family="13F",
+                filing_family=handler["filing_family"],
                 mode=options.mode,
             )
             if options.mode in {"full", "daily"}
@@ -86,7 +103,7 @@ def run_ingest(settings: Settings, options: IngestOptions) -> int:
         )
         run_id = start_ingestion_run(
             connection,
-            filing_family="13F",
+            filing_family=handler["filing_family"],
             mode=options.mode,
             from_date=window.start_date,
             to_date=window.end_date,
@@ -118,6 +135,7 @@ def run_ingest(settings: Settings, options: IngestOptions) -> int:
                     window_end=window.end_date,
                     checkpoint=checkpoint,
                     stats=stats,
+                    form_types=handler["form_types"],
                 )
                 if options.limit_filings is not None:
                     entries = entries[: options.limit_filings]
@@ -129,22 +147,23 @@ def run_ingest(settings: Settings, options: IngestOptions) -> int:
                             sec_client=sec_client,
                             artifact_store=artifact_store,
                             entry=entry,
+                            handler=handler,
                         )
                         if not options.dry_run:
-                            fingerprint = artifact_fingerprint(artifacts)
-                            mark_processing_state(
+                            fingerprint = handler["artifact_fingerprint"](artifacts)
+                            handler["mark_processing_state"](
                                 connection,
                                 accession_number=parsed_filing.accession_number,
                                 status="RUNNING",
                                 artifact_hash=fingerprint,
                             )
-                            upsert_parsed_filing(
+                            handler["upsert_parsed_filing"](
                                 connection,
                                 filing=parsed_filing,
                                 artifacts=artifacts,
                             )
                             connection.commit()
-                            mark_processing_state(
+                            handler["mark_processing_state"](
                                 connection,
                                 accession_number=parsed_filing.accession_number,
                                 status="SUCCESS",
@@ -153,7 +172,7 @@ def run_ingest(settings: Settings, options: IngestOptions) -> int:
                             if options.mode in {"full", "daily"}:
                                 save_checkpoint(
                                     connection,
-                                    filing_family="13F",
+                                    filing_family=handler["filing_family"],
                                     mode=options.mode,
                                     filed_date=parsed_filing.filed_date,
                                     accession_number=parsed_filing.accession_number,
@@ -163,7 +182,7 @@ def run_ingest(settings: Settings, options: IngestOptions) -> int:
                         LOGGER.exception("Failed to process accession %s", entry.accession_number)
                         connection.rollback()
                         if not options.dry_run:
-                            mark_processing_state(
+                            handler["mark_processing_state"](
                                 connection,
                                 accession_number=entry.accession_number,
                                 status="FAILED",
@@ -175,6 +194,7 @@ def run_ingest(settings: Settings, options: IngestOptions) -> int:
             if (
                 not options.dry_run
                 and options.refresh_analytics
+                and handler["refresh_analytics"]
                 and stats["processed_filings"] > 0
             ):
                 refreshed = refresh_analytics_views(connection)
@@ -202,10 +222,11 @@ def run_ingest(settings: Settings, options: IngestOptions) -> int:
 
 
 def run_reprocess(settings: Settings, options: ReprocessOptions) -> int:
+    handler = _handler_for_family(options.filing_family)
     with connect_db(settings.require_db()) as connection:
         run_id = start_ingestion_run(
             connection,
-            filing_family="13F",
+            filing_family=handler["filing_family"],
             mode="reprocess",
             from_date=options.from_date,
             to_date=options.to_date,
@@ -219,28 +240,28 @@ def run_reprocess(settings: Settings, options: ReprocessOptions) -> int:
         try:
             for filing_record in list_filings_for_reprocess(
                 connection,
-                filing_family="13F",
+                filing_family=handler["filing_family"],
                 accession=options.accession,
                 from_date=options.from_date,
                 to_date=options.to_date,
             ):
                 try:
                     artifacts = list_artifacts_for_accession(connection, filing_record.accession_number)
-                    parsed_filing = _reparse_cached_filing(filing_record, artifacts)
-                    fingerprint = artifact_fingerprint(artifacts)
-                    mark_processing_state(
+                    parsed_filing = _reparse_cached_filing(filing_record, artifacts, handler=handler)
+                    fingerprint = handler["artifact_fingerprint"](artifacts)
+                    handler["mark_processing_state"](
                         connection,
                         accession_number=parsed_filing.accession_number,
                         status="RUNNING",
                         artifact_hash=fingerprint,
                     )
-                    upsert_parsed_filing(
+                    handler["upsert_parsed_filing"](
                         connection,
                         filing=parsed_filing,
                         artifacts=artifacts,
                     )
                     connection.commit()
-                    mark_processing_state(
+                    handler["mark_processing_state"](
                         connection,
                         accession_number=parsed_filing.accession_number,
                         status="SUCCESS",
@@ -253,7 +274,7 @@ def run_reprocess(settings: Settings, options: ReprocessOptions) -> int:
                         filing_record.accession_number,
                     )
                     connection.rollback()
-                    mark_processing_state(
+                    handler["mark_processing_state"](
                         connection,
                         accession_number=filing_record.accession_number,
                         status="FAILED",
@@ -262,7 +283,7 @@ def run_reprocess(settings: Settings, options: ReprocessOptions) -> int:
                     )
                     stats["failed_filings"] += 1
 
-            if options.refresh_analytics and stats["processed_filings"] > 0:
+            if options.refresh_analytics and handler["refresh_analytics"] and stats["processed_filings"] > 0:
                 refreshed = refresh_analytics_views(connection)
                 stats["analytics_views_refreshed"] = len(refreshed)
                 LOGGER.info("Refreshed analytics views: %s", ", ".join(refreshed))
@@ -295,6 +316,7 @@ def _collect_index_entries(
     window_end: date,
     checkpoint: CheckpointValue | None,
     stats: dict[str, int],
+    form_types: frozenset[str],
 ) -> list[IndexEntry]:
     entries: list[IndexEntry] = []
     for url in index_urls_for_window(
@@ -307,7 +329,7 @@ def _collect_index_entries(
         index_text = decode_index_payload(url, payload)
         filtered_entries = filter_entries(
             entries=parse_master_idx(index_text),
-            form_types=THIRTEENF_FORM_TYPES,
+            form_types=form_types,
             start_date=window_start,
             end_date=window_end,
         )
@@ -322,6 +344,26 @@ def _collect_index_entries(
 
 
 def _download_and_parse_filing(
+    *,
+    sec_client: SecClient,
+    artifact_store: ArtifactStore,
+    entry: IndexEntry,
+    handler: dict[str, object],
+) -> tuple[object, list[StoredArtifact]]:
+    if handler["filing_family"] == "PERIODIC_REPORTS":
+        return _download_and_parse_periodic(
+            sec_client=sec_client,
+            artifact_store=artifact_store,
+            entry=entry,
+        )
+    return _download_and_parse_thirteenf(
+        sec_client=sec_client,
+        artifact_store=artifact_store,
+        entry=entry,
+    )
+
+
+def _download_and_parse_thirteenf(
     *,
     sec_client: SecClient,
     artifact_store: ArtifactStore,
@@ -400,7 +442,87 @@ def _download_and_parse_filing(
     return parsed_filing, artifacts
 
 
-def _reparse_cached_filing(filing_record: object, artifacts: list[StoredArtifact]) -> object:
+def _download_and_parse_periodic(
+    *,
+    sec_client: SecClient,
+    artifact_store: ArtifactStore,
+    entry: IndexEntry,
+) -> tuple[object, list[StoredArtifact]]:
+    directory_index_bytes = sec_client.get_bytes(entry.directory_index_url)
+    submission_bytes = sec_client.get_bytes(entry.archive_url)
+    submission_text = submission_bytes.decode("utf-8", errors="replace")
+    submission_header = parse_submission_header(submission_text)
+    submission_documents = parse_submission_documents(submission_text)
+    selection = select_periodic_documents(entry.form_type, submission_documents)
+
+    artifacts = [
+        artifact_store.save_bytes(
+            entry.accession_number,
+            "directory_index",
+            entry.directory_index_url,
+            "index.json",
+            directory_index_bytes,
+            content_type="application/json",
+        ),
+        artifact_store.save_bytes(
+            entry.accession_number,
+            "submission_text",
+            entry.archive_url,
+            Path(entry.archive_path).name,
+            submission_bytes,
+            content_type="text/plain",
+        ),
+    ]
+
+    primary_url = f"{entry.filing_directory_url}/{selection.primary_document.filename}"
+    primary_bytes = sec_client.get_bytes(primary_url)
+    artifacts.append(
+        artifact_store.save_bytes(
+            entry.accession_number,
+            "primary_document",
+            primary_url,
+            selection.primary_document.filename,
+            primary_bytes,
+            content_type="text/html",
+        )
+    )
+
+    for index, document in enumerate(selection.xbrl_documents, start=1):
+        artifact_url = f"{entry.filing_directory_url}/{document.filename}"
+        artifact_bytes = sec_client.get_bytes(artifact_url)
+        artifacts.append(
+            artifact_store.save_bytes(
+                entry.accession_number,
+                f"xbrl_artifact_{index}",
+                artifact_url,
+                document.filename,
+                artifact_bytes,
+                content_type="application/xml",
+            )
+        )
+
+    parsed_filing = parse_periodic_report(
+        entry,
+        acceptance_datetime=submission_header.acceptance_datetime,
+        primary_document_filename=selection.primary_document.filename,
+        primary_document=primary_bytes,
+        index_url=entry.directory_index_url,
+    )
+    return parsed_filing, artifacts
+
+
+def _reparse_cached_filing(
+    filing_record: object,
+    artifacts: list[StoredArtifact],
+    *,
+    handler: dict[str, object],
+) -> object:
+    if handler["filing_family"] == "PERIODIC_REPORTS":
+        return _reparse_cached_periodic(filing_record, artifacts)
+    return _reparse_cached_thirteenf(filing_record, artifacts)
+
+
+def _reparse_cached_thirteenf(filing_record: object, artifacts: list[StoredArtifact]) -> object:
     artifact_map = {artifact.role: artifact for artifact in artifacts}
     submission_text = artifact_map["submission_text"].local_path.read_text(
         encoding="utf-8",
@@ -424,3 +546,62 @@ def _reparse_cached_filing(filing_record: object, artifacts: list[StoredArtifact
         information_table_xml=information_bytes,
         index_url=filing_record.index_url,
     )
+
+
+def _reparse_cached_periodic(filing_record: object, artifacts: list[StoredArtifact]) -> object:
+    artifact_map = {artifact.role: artifact for artifact in artifacts}
+    submission_text = artifact_map["submission_text"].local_path.read_text(
+        encoding="utf-8",
+        errors="replace",
+    )
+    submission_header = parse_submission_header(submission_text)
+    primary_bytes = artifact_map["primary_document"].local_path.read_bytes()
+    return parse_periodic_report(
+        filing_record.to_index_entry(),
+        acceptance_datetime=submission_header.acceptance_datetime,
+        primary_document_filename=filing_record.primary_document_filename,
+        primary_document=primary_bytes,
+        index_url=filing_record.index_url,
+    )
+
+
+def _handler_for_family(
+    filing_family: str,
+    *,
+    form_type: str = "all",
+    include_amendments: bool = True,
+) -> dict[str, object]:
+    normalized = filing_family.upper()
+    if normalized == "13F":
+        return {
+            "filing_family": "13F",
+            "form_types": THIRTEENF_FORM_TYPES,
+            "artifact_fingerprint": artifact_fingerprint,
+            "mark_processing_state": mark_processing_state,
+            "upsert_parsed_filing": upsert_parsed_filing,
+            "refresh_analytics": True,
+        }
+    if normalized in {"PERIODIC", "PERIODIC_REPORTS"}:
+        form_types = _periodic_form_types(form_type, include_amendments=include_amendments)
+        return {
+            "filing_family": "PERIODIC_REPORTS",
+            "form_types": form_types,
+            "artifact_fingerprint": periodic_artifact_fingerprint,
+            "mark_processing_state": periodic_mark_processing_state,
+            "upsert_parsed_filing": periodic_upsert_parsed_filing,
+            "refresh_analytics": False,
+        }
+    raise ValueError(f"Unsupported filing family: {filing_family}")
+
+
+def _periodic_form_types(form_type: str, *, include_amendments: bool) -> frozenset[str]:
+    normalized = form_type.upper()
+    if normalized == "ALL":
+        base = {"10-K", "10-Q"}
+    elif normalized in {"10-K", "10-Q"}:
+        base = {normalized}
+    else:
+        raise ValueError("form_type must be one of: all, 10-K, 10-Q")
+    if include_amendments:
+        base |= {f"{form}/A" for form in list(base)}
+    return frozenset(base & set(PERIODIC_REPORT_FORM_TYPES))

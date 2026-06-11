@@ -67,6 +67,14 @@ For 13F:
 - structured holdings rows,
 - security-reference rows keyed to the exact filed identity tuple.
 
+For periodic reports:
+
+- filing-level report metadata,
+- section-level item extraction,
+- citation-oriented narrative chunks with full-text search,
+- filing-scoped Inline XBRL facts,
+- optional pgvector embeddings for semantic retrieval.
+
 ### Analytics Layer
 
 For 13F:
@@ -93,6 +101,7 @@ Deferred to later phases:
 - Quarter-over-quarter comparisons should be achievable through stable report period and filer keys.
 - Future MCP tools should consume views that encode filing-family-specific “effective” logic, such as picking the latest valid amendment for a quarter.
 - Filer identity for analytics should be keyed by `cik`, not raw `company_name`.
+- Long-form narrative reports should be retrieved through a hybrid path: metadata filters, full-text search, optional embeddings, and XBRL facts.
 
 ## 13F Boundaries
 

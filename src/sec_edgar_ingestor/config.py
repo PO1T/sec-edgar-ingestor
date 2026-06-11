@@ -33,6 +33,31 @@ def _get_float(env: Mapping[str, str], name: str, default: float) -> float:
     return value
 
 
+def _get_int(env: Mapping[str, str], name: str, default: int) -> int:
+    raw = env.get(name)
+    if raw is None or raw.strip() == "":
+        return default
+    try:
+        value = int(raw)
+    except ValueError as exc:
+        raise ConfigurationError(f"{name} must be an integer") from exc
+    if value <= 0:
+        raise ConfigurationError(f"{name} must be greater than zero")
+    return value
+
+
+def _get_bool(env: Mapping[str, str], name: str, default: bool) -> bool:
+    raw = env.get(name)
+    if raw is None or raw.strip() == "":
+        return default
+    normalized = raw.strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    raise ConfigurationError(f"{name} must be a boolean")
+
+
 @dataclass(frozen=True)
 class Settings:
     db_dsn: str | None
@@ -41,6 +66,13 @@ class Settings:
     log_level: str
     requests_per_second: float
     http_timeout_seconds: float
+    embeddings_enabled: bool
+    embedding_api_url: str
+    embedding_api_key: str | None
+    embedding_model: str
+    embedding_dimensions: int
+    embedding_batch_size: int
+    embedding_timeout_seconds: float
 
     @classmethod
     def from_env(
@@ -68,6 +100,35 @@ class Settings:
                 source,
                 "SEC_EDGAR_HTTP_TIMEOUT_SECONDS",
                 30.0,
+            ),
+            embeddings_enabled=_get_bool(
+                source,
+                "SEC_EDGAR_EMBEDDINGS_ENABLED",
+                False,
+            ),
+            embedding_api_url=source.get(
+                "SEC_EDGAR_EMBEDDING_API_URL",
+                "https://api.openai.com/v1/embeddings",
+            ),
+            embedding_api_key=source.get("SEC_EDGAR_EMBEDDING_API_KEY") or None,
+            embedding_model=source.get(
+                "SEC_EDGAR_EMBEDDING_MODEL",
+                "text-embedding-3-small",
+            ),
+            embedding_dimensions=_get_int(
+                source,
+                "SEC_EDGAR_EMBEDDING_DIMENSIONS",
+                1536,
+            ),
+            embedding_batch_size=_get_int(
+                source,
+                "SEC_EDGAR_EMBEDDING_BATCH_SIZE",
+                64,
+            ),
+            embedding_timeout_seconds=_get_float(
+                source,
+                "SEC_EDGAR_EMBEDDING_TIMEOUT_SECONDS",
+                60.0,
             ),
         )
 
