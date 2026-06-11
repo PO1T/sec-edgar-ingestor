@@ -49,11 +49,42 @@ class CliParserTestCase(unittest.TestCase):
 
     def test_periodic_embedding_backfill_parses(self) -> None:
         parser = build_parser()
-        args = parser.parse_args(["embeddings", "backfill", "periodic", "--limit", "10"])
+        args = parser.parse_args(
+            [
+                "embeddings",
+                "backfill",
+                "periodic",
+                "--profile",
+                "prod",
+                "--limit",
+                "10",
+                "--batch-size",
+                "2",
+                "--cik",
+                "0000123456",
+                "--ticker",
+                "EXF",
+                "--form-type",
+                "10-K",
+                "--filed-from",
+                "2024-01-01",
+                "--filed-to",
+                "2024-12-31",
+                "--rebuild",
+                "--dry-run",
+            ]
+        )
 
         self.assertEqual(args.embeddings_command, "backfill")
         self.assertEqual(args.embeddings_family, "periodic")
+        self.assertEqual(args.profile, "prod")
         self.assertEqual(args.limit, 10)
+        self.assertEqual(args.batch_size, 2)
+        self.assertEqual(args.cik, "0000123456")
+        self.assertEqual(args.ticker, "EXF")
+        self.assertEqual(args.form_type, "10-K")
+        self.assertTrue(args.rebuild)
+        self.assertTrue(args.dry_run)
 
 
 if __name__ == "__main__":

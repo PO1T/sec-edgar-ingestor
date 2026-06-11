@@ -201,7 +201,15 @@ Stores Inline XBRL facts by accession, concept, local name, context, unit, raw v
 
 ### `periodic_chunk_embeddings`
 
-Optional pgvector-backed semantic index for periodic report chunks. Migrations create this table only when pgvector can be enabled; otherwise keyword retrieval remains available and MCP tools report semantic retrieval as unavailable.
+Optional pgvector-backed semantic index for periodic report chunks. Rows are keyed by chunk and embedding profile, include content/input hashes for deterministic invalidation, and store provider usage metadata when available.
+
+### `periodic_embedding_profiles`
+
+Embedding profile metadata: profile name, provider kind, model, dimensions, distance metric, input template version, and active flag. MCP semantic retrieval only uses an active profile matching its configured model and dimensions.
+
+### `periodic_embedding_runs`
+
+Backfill run history for periodic embeddings, including filters, status, progress counts, last processed chunk id, and error summary.
 
 ### `periodic_report_summaries`
 

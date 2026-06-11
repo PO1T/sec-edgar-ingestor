@@ -19,6 +19,7 @@ class SettingsTestCase(unittest.TestCase):
         self.assertEqual(str(settings.data_dir), "data")
         self.assertEqual(settings.requests_per_second, 5.0)
         self.assertFalse(settings.embeddings_enabled)
+        self.assertEqual(settings.embedding_profile_name, "default")
         self.assertEqual(settings.embedding_model, "text-embedding-3-small")
         self.assertEqual(settings.embedding_dimensions, 1536)
 
@@ -27,17 +28,21 @@ class SettingsTestCase(unittest.TestCase):
             env={
                 "SEC_EDGAR_EMBEDDINGS_ENABLED": "true",
                 "SEC_EDGAR_EMBEDDING_API_KEY": "secret",
+                "SEC_EDGAR_EMBEDDING_PROFILE": "prod",
                 "SEC_EDGAR_EMBEDDING_MODEL": "custom-model",
                 "SEC_EDGAR_EMBEDDING_DIMENSIONS": "384",
                 "SEC_EDGAR_EMBEDDING_BATCH_SIZE": "8",
+                "SEC_EDGAR_EMBEDDING_MAX_RETRIES": "5",
             }
         )
 
         self.assertTrue(settings.embeddings_enabled)
         self.assertEqual(settings.embedding_api_key, "secret")
+        self.assertEqual(settings.embedding_profile_name, "prod")
         self.assertEqual(settings.embedding_model, "custom-model")
         self.assertEqual(settings.embedding_dimensions, 384)
         self.assertEqual(settings.embedding_batch_size, 8)
+        self.assertEqual(settings.embedding_max_retries, 5)
 
     def test_invalid_numeric_setting_raises(self) -> None:
         with self.assertRaises(ConfigurationError):

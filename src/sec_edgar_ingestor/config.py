@@ -69,10 +69,12 @@ class Settings:
     embeddings_enabled: bool
     embedding_api_url: str
     embedding_api_key: str | None
+    embedding_profile_name: str
     embedding_model: str
     embedding_dimensions: int
     embedding_batch_size: int
     embedding_timeout_seconds: float
+    embedding_max_retries: int
 
     @classmethod
     def from_env(
@@ -111,6 +113,10 @@ class Settings:
                 "https://api.openai.com/v1/embeddings",
             ),
             embedding_api_key=source.get("SEC_EDGAR_EMBEDDING_API_KEY") or None,
+            embedding_profile_name=source.get(
+                "SEC_EDGAR_EMBEDDING_PROFILE",
+                "default",
+            ),
             embedding_model=source.get(
                 "SEC_EDGAR_EMBEDDING_MODEL",
                 "text-embedding-3-small",
@@ -129,6 +135,11 @@ class Settings:
                 source,
                 "SEC_EDGAR_EMBEDDING_TIMEOUT_SECONDS",
                 60.0,
+            ),
+            embedding_max_retries=_get_int(
+                source,
+                "SEC_EDGAR_EMBEDDING_MAX_RETRIES",
+                3,
             ),
         )
 

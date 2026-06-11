@@ -88,11 +88,18 @@ sec-edgar reprocess periodic --from-date 2024-01-01 --to-date 2024-12-31
 Optional semantic retrieval setup:
 
 ```bash
-sec-edgar db enable-vector
+sec-edgar db enable-vector --profile default
 SEC_EDGAR_EMBEDDINGS_ENABLED=true \
 SEC_EDGAR_EMBEDDING_API_KEY=... \
-sec-edgar embeddings backfill periodic --limit 1000
+sec-edgar embeddings backfill periodic \
+  --profile default \
+  --limit 1000 \
+  --batch-size 64
 ```
+
+Use `--dry-run` before a large backfill to estimate candidate chunks, and use
+`--cik`, `--ticker`, `--form-type`, `--filed-from`, or `--filed-to` to scope
+the first embedding run to a small test set.
 
 Refresh analytics materialized views manually:
 

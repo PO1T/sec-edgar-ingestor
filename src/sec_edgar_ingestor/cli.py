@@ -25,10 +25,11 @@ def build_parser() -> argparse.ArgumentParser:
         "refresh-analytics",
         help="Refresh analytics materialized views",
     )
-    db_subparsers.add_parser(
+    enable_vector_parser = db_subparsers.add_parser(
         "enable-vector",
         help="Install pgvector for semantic periodic retrieval when available",
     )
+    enable_vector_parser.add_argument("--profile", default=None)
 
     ingest_parser = subparsers.add_parser("ingest", help="Ingest filings")
     ingest_subparsers = ingest_parser.add_subparsers(dest="filing_family", required=True)
@@ -109,7 +110,20 @@ def build_parser() -> argparse.ArgumentParser:
         "periodic",
         help="Backfill periodic report chunk embeddings",
     )
+    embeddings_periodic.add_argument("--profile")
     embeddings_periodic.add_argument("--limit", type=int)
+    embeddings_periodic.add_argument("--batch-size", type=int)
+    embeddings_periodic.add_argument("--cik")
+    embeddings_periodic.add_argument("--ticker")
+    embeddings_periodic.add_argument(
+        "--form-type",
+        choices=["all", "10-K", "10-Q"],
+        default="all",
+    )
+    embeddings_periodic.add_argument("--filed-from", type=_parse_date)
+    embeddings_periodic.add_argument("--filed-to", type=_parse_date)
+    embeddings_periodic.add_argument("--rebuild", action="store_true")
+    embeddings_periodic.add_argument("--dry-run", action="store_true")
 
     return parser
 
@@ -133,11 +147,18 @@ def main(argv: list[str] | None = None) -> int:
             print(name)
         return 0
     if args.command == "db" and args.db_command == "enable-vector":
+        from sec_edgar_ingestor.filings.periodic.embeddings import (
+            enable_vector_for_profile,
+        )
+
         with connect_db(settings.require_db()) as connection:
-            with connection.cursor() as cursor:
-                cursor.execute("CREATE EXTENSION IF NOT EXISTS vector")
-            connection.commit()
-        print("vector")
+            profile = enable_vector_for_profile(
+                connection,
+                profile_name=args.profile or settings.embedding_profile_name,
+                model=settings.embedding_model,
+                dimensions=settings.embedding_dimensions,
+            )
+        print(f"vector:{profile.profile_name}:{profile.embedding_dimension}")
         return 0
 
     from sec_edgar_ingestor.pipeline.orchestrator import (
@@ -199,10 +220,25 @@ def main(argv: list[str] | None = None) -> int:
         and args.embeddings_family == "periodic"
     ):
         from sec_edgar_ingestor.filings.periodic.embeddings import (
+            BackfillOptions,
             run_periodic_embedding_backfill,
         )
 
-        return run_periodic_embedding_backfill(settings, limit=args.limit)
+        return run_periodic_embedding_backfill(
+            settings,
+            options=BackfillOptions(
+                profile_name=args.profile,
+                limit=args.limit,
+                batch_size=args.batch_size,
+                cik=args.cik,
+                ticker=args.ticker,
+                form_type=args.form_type,
+                filed_from=args.filed_from,
+                filed_to=args.filed_to,
+                rebuild=args.rebuild,
+                dry_run=args.dry_run,
+            ),
+        )
 
     parser.error("Unsupported command")
     return 2
