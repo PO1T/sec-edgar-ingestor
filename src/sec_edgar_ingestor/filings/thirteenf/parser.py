@@ -16,6 +16,8 @@ from sec_edgar_ingestor.sec.indexes import IndexEntry
 PARSER_NAME = "thirteenf"
 PARSER_VERSION = "1.0.0"
 VALUE_UNIT_CUTOFF = date(2023, 1, 3)
+UNKNOWN_AMENDMENT_TYPE = "UNKNOWN_AMENDMENT_TYPE"
+KNOWN_AMENDMENT_TYPE_CODES = frozenset({"RESTATEMENT", "NEW HOLDINGS"})
 
 
 class ParseError(ValueError):
@@ -81,6 +83,8 @@ def parse_thirteenf(
         entry.filed_date,
     )
 
+    amendment_type = _first_text(primary_root, "formData/coverPage/amendmentType")
+
     return ParsedThirteenF(
         accession_number=entry.accession_number,
         form_type=entry.form_type,
@@ -99,7 +103,11 @@ def parse_thirteenf(
         report_calendar_or_quarter=report_calendar_or_quarter,
         is_notice=is_notice,
         is_amendment=is_amendment,
-        amendment_type=_first_text(primary_root, "formData/coverPage/amendmentType"),
+        amendment_type=amendment_type,
+        amendment_type_code=normalize_amendment_type_code(
+            amendment_type,
+            is_amendment=is_amendment,
+        ),
         amendment_number=_parse_int(
             _first_text(primary_root, "formData/coverPage/amendmentNumber")
         ),
@@ -173,6 +181,23 @@ def normalize_reported_value(value: Decimal | None, filed_date: date) -> Decimal
     if filed_date >= VALUE_UNIT_CUTOFF:
         return value
     return value * Decimal("1000")
+
+
+def normalize_amendment_type_code(
+    amendment_type: str | None,
+    *,
+    is_amendment: bool,
+) -> str | None:
+    if not is_amendment:
+        return None
+
+    if amendment_type is None:
+        return UNKNOWN_AMENDMENT_TYPE
+
+    normalized = " ".join(amendment_type.split()).upper()
+    if normalized in KNOWN_AMENDMENT_TYPE_CODES:
+        return normalized
+    return UNKNOWN_AMENDMENT_TYPE
 
 
 def _parse_holdings(

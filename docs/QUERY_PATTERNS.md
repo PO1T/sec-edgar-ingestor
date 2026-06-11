@@ -3,11 +3,25 @@
 ## Recommended Analytical Surfaces
 
 - Use `thirteenf_filer_identities` to resolve names to `cik`.
-- Use `thirteenf_filer_positions` for fast holder rankings and filer snapshots.
+- Use `thirteenf_filer_positions` for amendment-aware holder rankings and filer snapshots.
 - Use `thirteenf_filer_position_changes` for fast quarter-over-quarter scans.
 - Use `thirteenf_compare_filer_holdings(...)` when you need a direct two-period comparison that can conservatively match renamed or reclassified positions.
 
 For analytical work, filter by `cik` and treat `canonical_filer_name` as a display field. Raw `company_name` is still useful for provenance, but it is not a canonical manager key.
+
+`thirteenf_filer_positions` is built from `thirteenf_effective_holdings`, which
+consolidates `13F-HR/A` amendments by SEC semantics: restatements replace prior
+holdings and `NEW HOLDINGS` amendments supplement the latest base or restatement.
+Raw filings with `UNKNOWN_AMENDMENT_TYPE` remain queryable in base tables but do
+not affect these analytical surfaces.
+
+## Downstream MCP Sync Note
+
+After applying the amendment-resolution migration and refreshing analytics, MCP
+tools backed by `thirteenf_filer_positions` automatically read consolidated
+13F portfolios. Tools that need filing-level provenance should use
+`thirteenf_effective_holdings.accession_number`, because one effective portfolio
+can include rows from a base filing plus later `NEW HOLDINGS` amendments.
 
 ## Example Queries
 

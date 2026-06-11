@@ -210,6 +210,7 @@ def upsert_parsed_filing(
                 is_notice,
                 is_amendment,
                 amendment_type,
+                amendment_type_code,
                 amendment_number,
                 filing_manager_name,
                 street1,
@@ -241,7 +242,7 @@ def upsert_parsed_filing(
             VALUES (
                 %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                 %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                %s, NOW()
+                %s, %s, NOW()
             )
             ON CONFLICT (accession_number)
             DO UPDATE SET
@@ -251,6 +252,7 @@ def upsert_parsed_filing(
                 is_notice = EXCLUDED.is_notice,
                 is_amendment = EXCLUDED.is_amendment,
                 amendment_type = EXCLUDED.amendment_type,
+                amendment_type_code = EXCLUDED.amendment_type_code,
                 amendment_number = EXCLUDED.amendment_number,
                 filing_manager_name = EXCLUDED.filing_manager_name,
                 street1 = EXCLUDED.street1,
@@ -287,6 +289,7 @@ def upsert_parsed_filing(
                 filing.is_notice,
                 filing.is_amendment,
                 filing.amendment_type,
+                filing.amendment_type_code,
                 filing.amendment_number,
                 filing.filing_manager_name,
                 filing.street1,

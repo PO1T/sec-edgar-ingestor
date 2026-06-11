@@ -4,7 +4,6 @@
 
 - Which enrichment source should be preferred later for ticker aliases and security canonicalization?
 - How should future non-XML historical backfills be prioritized once XML-era coverage is stable?
-- Should the long-term effective-filing logic distinguish restatements from “adds new holdings” amendments more explicitly?
 
 ## Operations
 

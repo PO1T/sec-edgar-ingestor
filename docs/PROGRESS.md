@@ -16,6 +16,7 @@
 - CIK-keyed 13F analytics materialized views added for fast holder and quarter-over-quarter queries.
 - analytics refresh CLI and post-ingest refresh flow added.
 - live PostgreSQL validation completed for migrations and indexed analytics queries.
+- 13F amendment resolution added for `RESTATEMENT`, `NEW HOLDINGS`, and unknown amendment fallbacks.
 
 ## In Progress
 

@@ -74,6 +74,7 @@ class ParsedThirteenF:
     is_notice: bool
     is_amendment: bool
     amendment_type: str | None
+    amendment_type_code: str | None
     amendment_number: int | None
     filing_manager_name: str | None
     street1: str | None

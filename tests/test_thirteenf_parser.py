@@ -6,6 +6,7 @@ from decimal import Decimal
 from pathlib import Path
 
 from sec_edgar_ingestor.filings.thirteenf.parser import (
+    UNKNOWN_AMENDMENT_TYPE,
     normalize_reported_value,
     parse_thirteenf,
     value_unit_for_filed_date,
@@ -79,6 +80,60 @@ class ThirteenFParserTestCase(unittest.TestCase):
 
         self.assertTrue(parsed.is_amendment)
         self.assertEqual(parsed.amendment_type, "RESTATEMENT")
+        self.assertEqual(parsed.amendment_type_code, "RESTATEMENT")
+
+    def test_normalizes_new_holdings_amendment_type(self) -> None:
+        entry = _entry("13F-HR/A", date(2024, 8, 14), "-24-000005")
+        primary_xml = (FIXTURES_DIR / "hra_primary.xml").read_text(
+            encoding="utf-8",
+        ).replace("RESTATEMENT", "NEW HOLDINGS")
+
+        parsed = parse_thirteenf(
+            entry,
+            submission_type="13F-HR/A",
+            acceptance_datetime=datetime(2024, 8, 14, 11, 0, 0),
+            primary_document_filename="primary_doc.xml",
+            information_table_filename="infotable.xml",
+            primary_xml=primary_xml.encode("utf-8"),
+            information_table_xml=(FIXTURES_DIR / "hr_infotable.xml").read_bytes(),
+            index_url=entry.directory_index_url,
+        )
+
+        self.assertTrue(parsed.is_amendment)
+        self.assertEqual(parsed.amendment_type, "NEW HOLDINGS")
+        self.assertEqual(parsed.amendment_type_code, "NEW HOLDINGS")
+
+    def test_unknown_amendment_type_for_missing_blank_or_malformed_values(self) -> None:
+        cases = [
+            (None, "missing"),
+            ("   ", "blank"),
+            ("CORRECTION", "malformed"),
+        ]
+        template = (FIXTURES_DIR / "hra_primary.xml").read_text(encoding="utf-8")
+
+        for amendment_type, label in cases:
+            with self.subTest(label=label):
+                if amendment_type is None:
+                    primary_xml = template.replace(
+                        "      <amendmentType>RESTATEMENT</amendmentType>\n",
+                        "",
+                    )
+                else:
+                    primary_xml = template.replace("RESTATEMENT", amendment_type)
+
+                parsed = parse_thirteenf(
+                    _entry("13F-HR/A", date(2024, 8, 14), f"-24-unknown-{label}"),
+                    submission_type="13F-HR/A",
+                    acceptance_datetime=datetime(2024, 8, 14, 11, 0, 0),
+                    primary_document_filename="primary_doc.xml",
+                    information_table_filename="infotable.xml",
+                    primary_xml=primary_xml.encode("utf-8"),
+                    information_table_xml=(FIXTURES_DIR / "hr_infotable.xml").read_bytes(),
+                    index_url=None,
+                )
+
+                self.assertTrue(parsed.is_amendment)
+                self.assertEqual(parsed.amendment_type_code, UNKNOWN_AMENDMENT_TYPE)
 
     def test_parses_notice_filing(self) -> None:
         entry = IndexEntry(
@@ -125,6 +180,7 @@ class ThirteenFParserTestCase(unittest.TestCase):
 
         self.assertTrue(parsed.is_notice)
         self.assertTrue(parsed.is_amendment)
+        self.assertEqual(parsed.amendment_type_code, "RESTATEMENT")
 
     def test_normalizes_pre_2023_values(self) -> None:
         self.assertEqual(value_unit_for_filed_date(date(2022, 11, 14)), "THOUSANDS_USD")

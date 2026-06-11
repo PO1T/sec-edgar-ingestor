@@ -65,9 +65,15 @@ Stores normalized filing-level 13F data:
 
 - report period,
 - amendment and notice flags,
+- raw amendment type plus normalized `amendment_type_code`,
 - summary counts,
 - total reported value in raw and normalized units,
 - filing manager and signature metadata.
+
+`amendment_type_code` leaves the filed `amendment_type` untouched while giving
+downstream SQL deterministic values. Valid amended holdings reports use
+`RESTATEMENT` or `NEW HOLDINGS`; missing, blank, or unrecognized amended filing
+values use `UNKNOWN_AMENDMENT_TYPE` and are excluded from effective holdings.
 
 ### `thirteenf_other_managers`
 
@@ -90,11 +96,20 @@ Stores one row per reported holding with:
 
 ### `thirteenf_effective_filings`
 
-Selects the most recent accepted filing per filer, report period, and form category so downstream queries do not need to hand-code amendment-selection logic.
+Selects the latest filing that contributes to each effective filer/report-period portfolio or notice category.
+
+For holdings reports, effective state is resolved chronologically by `cik` and `report_period`:
+
+- `13F-HR` starts or resets the portfolio.
+- `13F-HR/A` with `RESTATEMENT` fully replaces prior effective holdings.
+- `13F-HR/A` with `NEW HOLDINGS` supplements the latest base or restatement.
+- `UNKNOWN_AMENDMENT_TYPE` and orphan `NEW HOLDINGS` filings are retained in raw tables but excluded from effective views.
 
 ### `thirteenf_effective_holdings`
 
-Joins effective filings to holdings for reporting and future MCP use.
+Exposes the consolidated effective portfolio per filer/report period. Rows keep
+their source `accession_number`, so a single effective portfolio may contain
+holdings from both a base filing and later `NEW HOLDINGS` amendments.
 
 ## Analytics Materialized Views
 

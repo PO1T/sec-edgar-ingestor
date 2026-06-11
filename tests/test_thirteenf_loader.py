@@ -52,6 +52,7 @@ def _sample_parsed_filing() -> ParsedThirteenF:
         is_notice=False,
         is_amendment=False,
         amendment_type=None,
+        amendment_type_code=None,
         amendment_number=None,
         filing_manager_name="Example Capital LP",
         street1="1 Main Street",
@@ -147,6 +148,7 @@ class LoaderTestCase(unittest.TestCase):
         executed_sql = "\n".join(statement for statement, _ in connection.statements)
         self.assertIn("DELETE FROM thirteenf_other_managers", executed_sql)
         self.assertIn("DELETE FROM thirteenf_holdings", executed_sql)
+        self.assertIn("amendment_type_code", executed_sql)
         self.assertIn("INSERT INTO thirteenf_holdings", executed_sql)
 
 
